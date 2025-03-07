@@ -1,9 +1,12 @@
 package com.example.repository;
 
-import com.example.model.User;
 import org.springframework.stereotype.Repository;
+
+import com.example.model.User;
+
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public class UserRepository {
@@ -14,7 +17,21 @@ public class UserRepository {
         users.add(new User(2L, "Мария", "maria@mail.ru"));
     }
 
-    public List<User> findAll() {
-        return users;
+    public Optional<List<User>> findAll() {
+        return Optional.of(users);
+    }
+
+    public Optional<User> findById(Long id) {
+        return users.stream()
+                    .filter(user -> user.getId().equals(id))
+                    .findFirst();
+    }
+
+    public void save(User user) {
+        users.add(user);
+    }
+
+    public void delete(User user) {
+        users.remove(user);
     }
 }
