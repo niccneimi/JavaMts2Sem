@@ -4,3 +4,13 @@ server:
 logging:
   level:
     com.example: DEBUG 
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include:
+        - '**'
+        exclude:
+        - shutdown
+      base-path: /admin 
