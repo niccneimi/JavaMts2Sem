@@ -10,12 +10,17 @@ import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.Caching;
 import org.springframework.stereotype.Service;
 import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Slf4j
 @Service
 public class UserService {
     private final UserRepository userRepository;
-
+    
+    private final Map<String, Boolean> processedOperations = new ConcurrentHashMap<>();
+    
     public UserService(UserRepository userRepository) {
         this.userRepository = userRepository;
     }
@@ -137,5 +142,52 @@ public class UserService {
     public void deleteUsers(List<Long> ids) {
         log.debug("Удаление нескольких пользователей");
         ids.forEach(this::deleteUser);
+    }
+
+    /**
+     * Обеспечивает гарантию однократного исполнения за счет:
+     * 1. Использования уникальных идентификаторов операций
+     * 2. Отслеживания состояния выполненных операций в локальном хранилище
+     * 3. Механизма блокировок для обеспечения атомарности при параллельном доступе
+     * 4. Проверки статуса операции перед выполнением
+     */
+    public boolean processFinancialOperation(String operationId, Long userId, double amount) {
+        log.info("Запрос на финансовую операцию с ID: {}, для пользователя: {}, сумма: {}", 
+                operationId, userId, amount);
+        
+        String actualOperationId = operationId != null ? operationId : UUID.randomUUID().toString();
+        
+        synchronized (getOperationLock(actualOperationId)) {
+            if (processedOperations.containsKey(actualOperationId)) {
+                log.info("Операция с ID {} уже была выполнена ранее. Повторное выполнение пропущено.", 
+                        actualOperationId);
+                return processedOperations.get(actualOperationId);
+            }
+            
+            try {
+                User user = userRepository.findById(userId)
+                        .orElseThrow(() -> new RuntimeException("Пользователь не найден"));
+                log.info("Выполняется финансовая операция для пользователя: {}", userId);
+                boolean operationSuccessful = processPayment(user, amount);
+                processedOperations.put(actualOperationId, operationSuccessful);
+                log.info("Финансовая операция {} для пользователя {} выполнена успешно: {}", 
+                        actualOperationId, userId, operationSuccessful);
+                return operationSuccessful;
+            } catch (Exception e) {
+                log.error("Ошибка при выполнении финансовой операции: {}", e.getMessage());
+                processedOperations.put(actualOperationId, false);
+                return false;
+            }
+        }
+    }
+    
+    private Object getOperationLock(String operationId) {
+        return operationId.intern();
+    }
+    
+    // Имитация обработки платежа
+    private boolean processPayment(User user, double amount) {
+        log.info("Обработка платежа на сумму {} для пользователя {}", amount, user.getId());
+        return Math.random() > 0.2;
     }
 } 
