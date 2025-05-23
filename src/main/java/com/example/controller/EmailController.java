@@ -16,7 +16,6 @@ import java.util.concurrent.CompletableFuture;
 @RestController
 @RequestMapping("/api/email")
 @RateLimiter(name = "emailService")
-@CircuitBreaker(name = "emailService", fallbackMethod = "commonFallback")
 public class EmailController {
 
     private final EmailService emailService;
@@ -26,6 +25,7 @@ public class EmailController {
     }
 
     @GetMapping("/send-sync")
+    @CircuitBreaker(name = "emailService", fallbackMethod = "sendEmailFallback")
     public ResponseEntity<String> sendEmail(
             @RequestParam String email,
             @RequestParam String subject,
@@ -42,6 +42,7 @@ public class EmailController {
     }
 
     @GetMapping("/send-async")
+    @CircuitBreaker(name = "emailService", fallbackMethod = "sendEmailAsyncFallback")
     public ResponseEntity<String> sendEmailAsync(
             @RequestParam String email,
             @RequestParam String subject,
@@ -54,6 +55,7 @@ public class EmailController {
     }
     
     @GetMapping("/send-async-wait")
+    @CircuitBreaker(name = "emailService", fallbackMethod = "sendEmailAsyncAndWaitFallback")
     public CompletableFuture<ResponseEntity<String>> sendEmailAsyncAndWait(
             @RequestParam String email,
             @RequestParam String subject,
@@ -69,16 +71,33 @@ public class EmailController {
                     }
                 });
     }
-    
-    public ResponseEntity<String> commonFallback(Exception ex) {
-        log.error("Сработал fallback для EmailController: {}", ex.getMessage());
+
+    public ResponseEntity<String> sendEmailFallback(
+            String email, 
+            String subject, 
+            String content, 
+            Exception ex) {
+        log.error("Сработал fallback для sendEmail: {}", ex.getMessage());
         return ResponseEntity.status(503)
             .body("Сервис отправки email временно недоступен. Пожалуйста, повторите запрос позже.");
     }
     
-    public CompletableFuture<ResponseEntity<String>> commonFallback(
-            String email, String subject, String content, Exception ex) {
-        log.error("Сработал fallback для асинхронной отправки email: {}", ex.getMessage());
+    public ResponseEntity<String> sendEmailAsyncFallback(
+            String email, 
+            String subject, 
+            String content, 
+            Exception ex) {
+        log.error("Сработал fallback для sendEmailAsync: {}", ex.getMessage());
+        return ResponseEntity.status(503)
+            .body("Сервис асинхронной отправки email временно недоступен. Пожалуйста, повторите запрос позже.");
+    }
+    
+    public CompletableFuture<ResponseEntity<String>> sendEmailAsyncAndWaitFallback(
+            String email, 
+            String subject, 
+            String content, 
+            Throwable ex) {
+        log.error("Сработал fallback для sendEmailAsyncAndWait: {}", ex.getMessage());
         return CompletableFuture.completedFuture(
             ResponseEntity.status(503)
                 .body("Сервис отправки email временно недоступен. Пожалуйста, повторите запрос позже.")

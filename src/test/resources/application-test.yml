@@ -3,12 +3,23 @@ server:
 
 spring:
   application:
-    name: demo-app-test
+    name: demo-app-test 
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.PostgreSQLDialect
 
 logging:
   level:
     com.example: DEBUG
     org.springframework.test: INFO
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+    org.testcontainers: INFO
     
 resilience4j:
   ratelimiter:
