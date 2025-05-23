@@ -5,6 +5,7 @@ import lombok.Data;
 import lombok.AllArgsConstructor;
 import lombok.NoArgsConstructor;
 import lombok.Builder;
+import java.util.ArrayList;
 import java.util.List;
 
 @Data
@@ -25,11 +26,13 @@ public class User {
     private String email;
     
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
-    private List<Order> orders;
+    @Builder.Default
+    private List<Order> orders = new ArrayList<>();
     
     public User(Long id, String name, String email) {
         this.id = id;
         this.name = name;
         this.email = email;
+        this.orders = new ArrayList<>();
     }
 }

@@ -25,6 +25,6 @@ public interface UserRepository extends JpaRepository<User, Long> {
     @Query(value = "SELECT * FROM users WHERE email LIKE CONCAT('%', :domain, '%')", nativeQuery = true)
     List<User> findByEmailDomain(@Param("domain") String domain);
     
-    @Query("SELECT COUNT(o) > 0 FROM User u JOIN u.orders o WHERE u.id = :userId")
+    @Query("SELECT CASE WHEN COUNT(o) > 0 THEN true ELSE false END FROM Order o WHERE o.user.id = :userId")
     boolean hasOrders(@Param("userId") Long userId);
 }

@@ -33,25 +33,24 @@ public class OrderRepositoryCustomImpl implements OrderRepositoryCustom {
     public List<Order> findComplexOrders(List<String> statuses, Long userId, boolean sortByAmount) {
         CriteriaBuilder cb = entityManager.getCriteriaBuilder();
         CriteriaQuery<Order> cq = cb.createQuery(Order.class);
-        Root<Order> orderRoot = cq.from(Order.class);
+        Root<Order> order = cq.from(Order.class);
         
         List<Predicate> predicates = new ArrayList<>();
         
         if (statuses != null && !statuses.isEmpty()) {
-            predicates.add(orderRoot.get("status").in(statuses));
+            predicates.add(order.get("status").in(statuses));
         }
         
         if (userId != null) {
-            Join<Object, Object> userJoin = orderRoot.join("user");
-            predicates.add(cb.equal(userJoin.get("id"), userId));
+            predicates.add(cb.equal(order.get("user").get("id"), userId));
         }
         
         cq.where(predicates.toArray(new Predicate[0]));
         
         if (sortByAmount) {
-            cq.orderBy(cb.desc(orderRoot.get("totalAmount")));
+            cq.orderBy(cb.desc(order.get("totalAmount")));
         } else {
-            cq.orderBy(cb.desc(orderRoot.get("createdAt")));
+            cq.orderBy(cb.desc(order.get("createdAt")));
         }
         
         return entityManager.createQuery(cq).getResultList();

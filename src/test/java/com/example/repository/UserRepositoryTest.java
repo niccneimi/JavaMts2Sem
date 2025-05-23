@@ -5,15 +5,11 @@ import com.example.model.User;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
-import org.testcontainers.containers.PostgreSQLContainer;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
 
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -22,30 +18,17 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 
 @DataJpaTest
-@Testcontainers
-@AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @ActiveProfiles("test")
 class UserRepositoryTest {
-
-    @Container
-    static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:15-alpine")
-            .withDatabaseName("testdb")
-            .withUsername("test")
-            .withPassword("test");
-
-    @DynamicPropertySource
-    static void setProperties(DynamicPropertyRegistry registry) {
-        registry.add("spring.datasource.url", postgres::getJdbcUrl);
-        registry.add("spring.datasource.username", postgres::getUsername);
-        registry.add("spring.datasource.password", postgres::getPassword);
-        registry.add("spring.flyway.enabled", () -> "true");
-    }
 
     @Autowired
     private UserRepository userRepository;
 
     @Autowired
     private OrderRepository orderRepository;
+    
+    @PersistenceContext
+    private EntityManager entityManager;
 
     private User testUser;
 
@@ -124,10 +107,25 @@ class UserRepositoryTest {
                 .user(testUser)
                 .build();
         orderRepository.save(order);
+        
+        entityManager.flush();
+        entityManager.clear();
 
         Optional<User> userWithOrders = userRepository.findByIdWithOrders(testUser.getId());
 
         assertThat(userWithOrders).isPresent();
+        assertThat(userWithOrders.get().getOrders()).isNotNull();
+        if (userWithOrders.get().getOrders().isEmpty()) {
+            System.out.println("ВНИМАНИЕ: Список заказов пуст! ID пользователя: " + testUser.getId());
+            
+            List<Order> allOrders = orderRepository.findAll();
+            System.out.println("Всего заказов в БД: " + allOrders.size());
+            for (Order o : allOrders) {
+                System.out.println("Заказ: ID=" + o.getId() + ", номер=" + o.getOrderNumber() + 
+                                  ", пользователь ID=" + (o.getUser() != null ? o.getUser().getId() : "null"));
+            }
+        }
+        
         assertThat(userWithOrders.get().getOrders()).hasSize(1);
         assertThat(userWithOrders.get().getOrders().get(0).getOrderNumber()).isEqualTo("ORD-001");
     }
