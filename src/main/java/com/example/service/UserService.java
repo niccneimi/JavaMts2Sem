@@ -9,6 +9,8 @@ import org.springframework.cache.annotation.CachePut;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.Caching;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -28,15 +30,14 @@ public class UserService {
     @Cacheable(value = "users")
     public List<User> getAllUsers() {
         log.debug("Получение списка всех пользователей");
-        List<User> users = userRepository.findAll().get();
-        return users;
+        return userRepository.findAll();
     }
 
     @Cacheable(value = "userById", key = "#id")
     public User getUserById(Long id) {
         log.debug("Получение одного пользователя по Id");
-        User user = userRepository.findById(id).orElseThrow(() -> new RuntimeException("Пользователь не найден"));
-        return user;
+        return userRepository.findById(id)
+            .orElseThrow(() -> new RuntimeException("Пользователь не найден"));
     }
 
     @Caching(
@@ -47,17 +48,17 @@ public class UserService {
             @CacheEvict(value = "users", allEntries = true)
         }
     )
+    @Transactional
     public User createUser(User user) {
         log.debug("Создание пользователя");
-        userRepository.save(user);
-        return user;
+        return userRepository.save(user);
     }
 
     @CacheEvict(value = "users", allEntries = true)
+    @Transactional
     public List<User> createUsers(List<User> users) {
         log.debug("Создание нескольких пользователей");
-        users.forEach(userRepository::save);
-        return users;
+        return userRepository.saveAll(users);
     }
 
     @Caching(
@@ -68,12 +69,14 @@ public class UserService {
             @CacheEvict(value = "users", allEntries = true)
         }
     )
-    public User updateUser(Long id, User user) {
+    @Transactional
+    public User updateUser(Long id, User userData) {
         log.debug("Обновление пользователя");
-        User existingUser = userRepository.findById(id).orElseThrow(() -> new RuntimeException("Пользователь не найден"));
-        existingUser.setName(user.getName());
-        existingUser.setEmail(user.getEmail());
-        return existingUser;
+        User existingUser = userRepository.findById(id)
+            .orElseThrow(() -> new RuntimeException("Пользователь не найден"));
+        existingUser.setName(userData.getName());
+        existingUser.setEmail(userData.getEmail());
+        return userRepository.save(existingUser);
     }
 
     @Caching(
@@ -84,11 +87,13 @@ public class UserService {
             @CacheEvict(value = "users", allEntries = true)
         }
     )
+    @Transactional
     public User updateUserEmail(Long id, String email) {
         log.debug("Обновление email пользователя");
-        User user = userRepository.findById(id).orElseThrow(() -> new RuntimeException("Пользователь не найден"));
+        User user = userRepository.findById(id)
+            .orElseThrow(() -> new RuntimeException("Пользователь не найден"));
         user.setEmail(email);
-        return user;
+        return userRepository.save(user);
     }
 
     @Caching(
@@ -99,16 +104,18 @@ public class UserService {
             @CacheEvict(value = "users", allEntries = true)
         }
     )
-    public User partialUpdateUser(Long id, User user) {
+    @Transactional
+    public User partialUpdateUser(Long id, User userData) {
         log.debug("Частисное обновление пользователя");
-        User existingUser = userRepository.findById(id).orElseThrow(() -> new RuntimeException("Пользователь не найден"));
-        if (user.getName() != null) {
-            existingUser.setName(user.getName());
+        User existingUser = userRepository.findById(id)
+            .orElseThrow(() -> new RuntimeException("Пользователь не найден"));
+        if (userData.getName() != null) {
+            existingUser.setName(userData.getName());
         }
-        if (user.getEmail() != null) {
-            existingUser.setEmail(user.getEmail());
+        if (userData.getEmail() != null) {
+            existingUser.setEmail(userData.getEmail());
         }
-        return existingUser;
+        return userRepository.save(existingUser);
     }
 
     @Caching(
@@ -119,11 +126,13 @@ public class UserService {
             @CacheEvict(value = "users", allEntries = true)
         }
     )
+    @Transactional
     public User partialUpdateUserName(Long id, String name) {
         log.debug("Установка имени пользователя");
-        User user = userRepository.findById(id).orElseThrow(() -> new RuntimeException("Пользователь не найден"));
+        User user = userRepository.findById(id)
+            .orElseThrow(() -> new RuntimeException("Пользователь не найден"));
         user.setName(name);
-        return user;
+        return userRepository.save(user);
     }
 
     @Caching(
@@ -132,25 +141,21 @@ public class UserService {
             @CacheEvict(value = "users", allEntries = true)
         }
     )
+    @Transactional
     public void deleteUser(Long id) {
         log.debug("Удаление пользователя");
-        User user = userRepository.findById(id).orElseThrow(() -> new RuntimeException("Пользователь не найден"));
+        User user = userRepository.findById(id)
+            .orElseThrow(() -> new RuntimeException("Пользователь не найден"));
         userRepository.delete(user);
     }
 
     @CacheEvict(value = {"users", "userById"}, allEntries = true)
+    @Transactional
     public void deleteUsers(List<Long> ids) {
         log.debug("Удаление нескольких пользователей");
         ids.forEach(this::deleteUser);
     }
-
-    /**
-     * Обеспечивает гарантию однократного исполнения за счет:
-     * 1. Использования уникальных идентификаторов операций
-     * 2. Отслеживания состояния выполненных операций в локальном хранилище
-     * 3. Механизма блокировок для обеспечения атомарности при параллельном доступе
-     * 4. Проверки статуса операции перед выполнением
-     */
+    
     public boolean processFinancialOperation(String operationId, Long userId, double amount) {
         log.info("Запрос на финансовую операцию с ID: {}, для пользователя: {}, сумма: {}", 
                 operationId, userId, amount);
@@ -167,12 +172,17 @@ public class UserService {
             try {
                 User user = userRepository.findById(userId)
                         .orElseThrow(() -> new RuntimeException("Пользователь не найден"));
+                
                 log.info("Выполняется финансовая операция для пользователя: {}", userId);
+                
                 boolean operationSuccessful = processPayment(user, amount);
+                
                 processedOperations.put(actualOperationId, operationSuccessful);
+                
                 log.info("Финансовая операция {} для пользователя {} выполнена успешно: {}", 
                         actualOperationId, userId, operationSuccessful);
                 return operationSuccessful;
+                
             } catch (Exception e) {
                 log.error("Ошибка при выполнении финансовой операции: {}", e.getMessage());
                 processedOperations.put(actualOperationId, false);
@@ -185,9 +195,9 @@ public class UserService {
         return operationId.intern();
     }
     
-    // Имитация обработки платежа
     private boolean processPayment(User user, double amount) {
         log.info("Обработка платежа на сумму {} для пользователя {}", amount, user.getId());
+        
         return Math.random() > 0.2;
     }
 } 

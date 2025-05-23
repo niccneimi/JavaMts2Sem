@@ -1,23 +1,35 @@
 server:
   port: 8080
 
+spring:
+  application:
+    name: demo-application
+  
+  datasource:
+    url: jdbc:postgresql://localhost:5432/demo_db
+    username: postgres
+    password: postgres
+    driver-class-name: org.postgresql.Driver
+  
+  jpa:
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+    hibernate:
+      ddl-auto: validate
+
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    locations: classpath:db/migration
+
 logging:
   level:
-    com.example: DEBUG 
-
-management:
-  endpoints:
-    web:
-      exposure:
-        include:
-        - '*'
-        exclude:
-        - shutdown
-      base-path: /admin 
-  endpoint:
-    health:
-      show-details: always 
-    
+    com.example: DEBUG
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
 resilience4j:
   ratelimiter:
     instances:
@@ -52,3 +64,15 @@ resilience4j:
         waitDurationInOpenState: 10s
         failureRateThreshold: 40
         eventConsumerBufferSize: 10
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "*"
+        exclude:
+        - shutdown
+      base-path: /admin
+  endpoint:
+    health:
+      show-details: always

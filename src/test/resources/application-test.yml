@@ -3,20 +3,26 @@ server:
 
 spring:
   application:
-    name: demo-app-test 
+    name: demo-app-test
+  datasource:
+    url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1;MODE=PostgreSQL
+    username: sa
+    password: sa
+    driver-class-name: org.h2.Driver
   jpa:
-    hibernate:
-      ddl-auto: validate
+    database-platform: org.hibernate.dialect.H2Dialect
     show-sql: true
     properties:
       hibernate:
         format_sql: true
-        dialect: org.hibernate.dialect.PostgreSQLDialect
+    hibernate:
+      ddl-auto: create-drop
+  flyway:
+    enabled: false
 
 logging:
   level:
     com.example: DEBUG
-    org.springframework.test: INFO
     org.hibernate.SQL: DEBUG
     org.hibernate.type.descriptor.sql.BasicBinder: TRACE
     org.testcontainers: INFO

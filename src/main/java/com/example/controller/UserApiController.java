@@ -7,7 +7,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.example.repository.UserRepository;
+import com.example.service.ExternalApiService;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.Collections;
@@ -20,23 +20,23 @@ import java.util.Map;
 @CircuitBreaker(name = "userApiService", fallbackMethod = "fallbackMethod")
 public class UserApiController {
 
-    private final UserRepository userRepository;
+    private final ExternalApiService externalApiService;
 
-    public UserApiController(UserRepository userRepository) {
-        this.userRepository = userRepository;
+    public UserApiController(ExternalApiService externalApiService) {
+        this.externalApiService = externalApiService;
     }
 
     @GetMapping("/users/{id}")
     public ResponseEntity<Map<String, Object>> getUserFromExternalApi(@PathVariable Long id) {
         log.info("Получение данных пользователя с ID: {} из внешнего API", id);
-        Map<String, Object> userData = userRepository.getUserDataFromExternalApi(id);
+        Map<String, Object> userData = externalApiService.getUserDataFromExternalApi(id);
         return ResponseEntity.ok(userData);
     }
 
     @GetMapping("/users/{id}/todos")
     public ResponseEntity<List<Map<String, Object>>> getUserTodosFromExternalApi(@PathVariable Long id) {
         log.info("Получение задач пользователя с ID: {} из внешнего API", id);
-        List<Map<String, Object>> todos = userRepository.getUserTodosFromExternalApi(id);
+        List<Map<String, Object>> todos = externalApiService.getUserTodosFromExternalApi(id);
         return ResponseEntity.ok(todos);
     }
     

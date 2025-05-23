@@ -36,6 +36,7 @@ public class EmailControllerIntegrationTest {
 
     private WebTestClient webTestClient;
 
+    @SuppressWarnings("resource")
     @Container
     static PostgreSQLContainer<?> postgreSQLContainer = new PostgreSQLContainer<>("postgres:15-alpine")
             .withDatabaseName("testdb")
