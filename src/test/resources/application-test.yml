@@ -1,0 +1,54 @@
+server:
+  port: 8081
+
+spring:
+  application:
+    name: demo-app-test
+  datasource:
+    url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1
+    username: sa
+    password: sa
+    driver-class-name: org.h2.Driver
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.H2Dialect
+  flyway:
+    enabled: false
+
+logging:
+  level:
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+    com.example: DEBUG
+    
+resilience4j:
+  ratelimiter:
+    instances:
+      financeService:
+        limitForPeriod: 100
+        limitRefreshPeriod: 1s
+        timeoutDuration: 100ms
+      emailService:
+        limitForPeriod: 100
+        limitRefreshPeriod: 1s
+        timeoutDuration: 100ms
+      
+  circuitbreaker:
+    instances:
+      userApiService:
+        slidingWindowSize: 5
+        minimumNumberOfCalls: 3
+        permittedNumberOfCallsInHalfOpenState: 2
+        waitDurationInOpenState: 1s
+        failureRateThreshold: 50
+      emailService:
+        slidingWindowSize: 5
+        minimumNumberOfCalls: 3
+        permittedNumberOfCallsInHalfOpenState: 2
+        waitDurationInOpenState: 1s
+        failureRateThreshold: 50 
