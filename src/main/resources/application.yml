@@ -1,0 +1,54 @@
+server:
+  port: 8080
+
+logging:
+  level:
+    com.example: DEBUG 
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include:
+        - '*'
+        exclude:
+        - shutdown
+      base-path: /admin 
+  endpoint:
+    health:
+      show-details: always 
+    
+resilience4j:
+  ratelimiter:
+    instances:
+      financeService:
+        limitForPeriod: 5
+        limitRefreshPeriod: 10s
+        timeoutDuration: 1s
+        registerHealthIndicator: true
+      emailService:
+        limitForPeriod: 10
+        limitRefreshPeriod: 60s
+        timeoutDuration: 1s
+        registerHealthIndicator: true
+      
+  circuitbreaker:
+    instances:
+      userApiService:
+        registerHealthIndicator: true
+        slidingWindowSize: 10
+        minimumNumberOfCalls: 5
+        permittedNumberOfCallsInHalfOpenState: 3
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+        waitDurationInOpenState: 5s
+        failureRateThreshold: 50
+        eventConsumerBufferSize: 10
+      emailService:
+        registerHealthIndicator: true
+        slidingWindowSize: 8
+        minimumNumberOfCalls: 3
+        permittedNumberOfCallsInHalfOpenState: 2
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+        waitDurationInOpenState: 10s
+        failureRateThreshold: 40
+        eventConsumerBufferSize: 10

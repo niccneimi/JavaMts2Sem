@@ -1,0 +1,49 @@
+server:
+  port: 8081
+
+spring:
+  application:
+    name: demo-app-test 
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+
+logging:
+  level:
+    com.example: DEBUG
+    org.springframework.test: INFO
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+    org.testcontainers: INFO
+    
+resilience4j:
+  ratelimiter:
+    instances:
+      financeService:
+        limitForPeriod: 100
+        limitRefreshPeriod: 1s
+        timeoutDuration: 100ms
+      emailService:
+        limitForPeriod: 100
+        limitRefreshPeriod: 1s
+        timeoutDuration: 100ms
+      
+  circuitbreaker:
+    instances:
+      userApiService:
+        slidingWindowSize: 5
+        minimumNumberOfCalls: 3
+        permittedNumberOfCallsInHalfOpenState: 2
+        waitDurationInOpenState: 1s
+        failureRateThreshold: 50
+      emailService:
+        slidingWindowSize: 5
+        minimumNumberOfCalls: 3
+        permittedNumberOfCallsInHalfOpenState: 2
+        waitDurationInOpenState: 1s
+        failureRateThreshold: 50 
