@@ -1,5 +1,6 @@
 package com.example.service;
 
+import com.example.dto.UserDto;
 import com.example.model.User;
 import com.example.repository.UserRepository;
 import lombok.extern.slf4j.Slf4j;
@@ -9,12 +10,15 @@ import org.springframework.cache.annotation.CachePut;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.Caching;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -28,16 +32,29 @@ public class UserService {
     }
 
     @Cacheable(value = "users")
-    public List<User> getAllUsers() {
+    @Transactional(readOnly = true, isolation = Isolation.READ_COMMITTED)
+    public List<UserDto> getAllUsers() {
         log.debug("Получение списка всех пользователей");
-        return userRepository.findAll();
+        return userRepository.findAll().stream()
+            .map(UserDto::new)
+            .collect(Collectors.toList());
     }
 
     @Cacheable(value = "userById", key = "#id")
-    public User getUserById(Long id) {
+    @Transactional(readOnly = true, isolation = Isolation.READ_COMMITTED)
+    public UserDto getUserById(Long id) {
         log.debug("Получение одного пользователя по Id");
-        return userRepository.findById(id)
+        User user = userRepository.findById(id)
             .orElseThrow(() -> new RuntimeException("Пользователь не найден"));
+        return new UserDto(user);
+    }
+    
+    @Transactional(readOnly = true, isolation = Isolation.READ_COMMITTED)
+    public UserDto getUserWithOrders(Long id) {
+        log.debug("Получение пользователя с заказами по Id");
+        User user = userRepository.findByIdWithOrders(id)
+            .orElseThrow(() -> new RuntimeException("Пользователь не найден"));
+        return new UserDto(user);
     }
 
     @Caching(
@@ -48,17 +65,26 @@ public class UserService {
             @CacheEvict(value = "users", allEntries = true)
         }
     )
-    @Transactional
-    public User createUser(User user) {
+    @Transactional(isolation = Isolation.READ_COMMITTED, propagation = Propagation.REQUIRED)
+    public UserDto createUser(User user) {
         log.debug("Создание пользователя");
-        return userRepository.save(user);
+        
+        if (userRepository.existsByEmail(user.getEmail())) {
+            throw new RuntimeException("Пользователь с таким email уже существует");
+        }
+        
+        User savedUser = userRepository.save(user);
+        return new UserDto(savedUser);
     }
 
     @CacheEvict(value = "users", allEntries = true)
-    @Transactional
-    public List<User> createUsers(List<User> users) {
+    @Transactional(isolation = Isolation.READ_COMMITTED, propagation = Propagation.REQUIRED)
+    public List<UserDto> createUsers(List<User> users) {
         log.debug("Создание нескольких пользователей");
-        return userRepository.saveAll(users);
+        List<User> savedUsers = userRepository.saveAll(users);
+        return savedUsers.stream()
+            .map(UserDto::new)
+            .collect(Collectors.toList());
     }
 
     @Caching(
@@ -69,14 +95,21 @@ public class UserService {
             @CacheEvict(value = "users", allEntries = true)
         }
     )
-    @Transactional
-    public User updateUser(Long id, User userData) {
+    @Transactional(isolation = Isolation.READ_COMMITTED, propagation = Propagation.REQUIRED)
+    public UserDto updateUser(Long id, User userData) {
         log.debug("Обновление пользователя");
         User existingUser = userRepository.findById(id)
             .orElseThrow(() -> new RuntimeException("Пользователь не найден"));
+        
+        if (!existingUser.getEmail().equals(userData.getEmail()) && 
+            userRepository.existsByEmail(userData.getEmail())) {
+            throw new RuntimeException("Пользователь с таким email уже существует");
+        }
+        
         existingUser.setName(userData.getName());
         existingUser.setEmail(userData.getEmail());
-        return userRepository.save(existingUser);
+        User savedUser = userRepository.save(existingUser);
+        return new UserDto(savedUser);
     }
 
     @Caching(
@@ -87,13 +120,19 @@ public class UserService {
             @CacheEvict(value = "users", allEntries = true)
         }
     )
-    @Transactional
-    public User updateUserEmail(Long id, String email) {
+    @Transactional(isolation = Isolation.READ_COMMITTED, propagation = Propagation.REQUIRED)
+    public UserDto updateUserEmail(Long id, String email) {
         log.debug("Обновление email пользователя");
+        
+        if (userRepository.existsByEmail(email)) {
+            throw new RuntimeException("Пользователь с таким email уже существует");
+        }
+        
         User user = userRepository.findById(id)
             .orElseThrow(() -> new RuntimeException("Пользователь не найден"));
         user.setEmail(email);
-        return userRepository.save(user);
+        User savedUser = userRepository.save(user);
+        return new UserDto(savedUser);
     }
 
     @Caching(
@@ -104,18 +143,25 @@ public class UserService {
             @CacheEvict(value = "users", allEntries = true)
         }
     )
-    @Transactional
-    public User partialUpdateUser(Long id, User userData) {
-        log.debug("Частисное обновление пользователя");
+    @Transactional(isolation = Isolation.READ_COMMITTED, propagation = Propagation.REQUIRED)
+    public UserDto partialUpdateUser(Long id, User userData) {
+        log.debug("Частичное обновление пользователя");
         User existingUser = userRepository.findById(id)
             .orElseThrow(() -> new RuntimeException("Пользователь не найден"));
+        
         if (userData.getName() != null) {
             existingUser.setName(userData.getName());
         }
-        if (userData.getEmail() != null) {
+        
+        if (userData.getEmail() != null && !userData.getEmail().equals(existingUser.getEmail())) {
+            if (userRepository.existsByEmail(userData.getEmail())) {
+                throw new RuntimeException("Пользователь с таким email уже существует");
+            }
             existingUser.setEmail(userData.getEmail());
         }
-        return userRepository.save(existingUser);
+        
+        User savedUser = userRepository.save(existingUser);
+        return new UserDto(savedUser);
     }
 
     @Caching(
@@ -126,13 +172,14 @@ public class UserService {
             @CacheEvict(value = "users", allEntries = true)
         }
     )
-    @Transactional
-    public User partialUpdateUserName(Long id, String name) {
+    @Transactional(isolation = Isolation.READ_COMMITTED, propagation = Propagation.REQUIRED)
+    public UserDto partialUpdateUserName(Long id, String name) {
         log.debug("Установка имени пользователя");
         User user = userRepository.findById(id)
             .orElseThrow(() -> new RuntimeException("Пользователь не найден"));
         user.setName(name);
-        return userRepository.save(user);
+        User savedUser = userRepository.save(user);
+        return new UserDto(savedUser);
     }
 
     @Caching(
@@ -141,21 +188,27 @@ public class UserService {
             @CacheEvict(value = "users", allEntries = true)
         }
     )
-    @Transactional
+    @Transactional(isolation = Isolation.READ_COMMITTED, propagation = Propagation.REQUIRED)
     public void deleteUser(Long id) {
         log.debug("Удаление пользователя");
         User user = userRepository.findById(id)
             .orElseThrow(() -> new RuntimeException("Пользователь не найден"));
+        
+        if (userRepository.hasOrders(id)) {
+            throw new RuntimeException("Нельзя удалить пользователя с заказами");
+        }
+        
         userRepository.delete(user);
     }
 
     @CacheEvict(value = {"users", "userById"}, allEntries = true)
-    @Transactional
+    @Transactional(isolation = Isolation.READ_COMMITTED, propagation = Propagation.REQUIRED, rollbackFor = Exception.class)
     public void deleteUsers(List<Long> ids) {
         log.debug("Удаление нескольких пользователей");
         ids.forEach(this::deleteUser);
     }
     
+    @Transactional(isolation = Isolation.READ_COMMITTED, propagation = Propagation.REQUIRED, rollbackFor = Exception.class)
     public boolean processFinancialOperation(String operationId, Long userId, double amount) {
         log.info("Запрос на финансовую операцию с ID: {}, для пользователя: {}, сумма: {}", 
                 operationId, userId, amount);
@@ -186,7 +239,7 @@ public class UserService {
             } catch (Exception e) {
                 log.error("Ошибка при выполнении финансовой операции: {}", e.getMessage());
                 processedOperations.put(actualOperationId, false);
-                return false;
+                throw e;
             }
         }
     }

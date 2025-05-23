@@ -1,5 +1,6 @@
 package com.example.controller;
 
+import com.example.dto.OrderDto;
 import com.example.model.Order;
 import com.example.service.OrderService;
 import org.springframework.http.ResponseEntity;
@@ -19,37 +20,37 @@ public class OrderController {
     }
 
     @GetMapping
-    public ResponseEntity<List<Order>> getAllOrders() {
+    public ResponseEntity<List<OrderDto>> getAllOrders() {
         return ResponseEntity.ok(orderService.getAllOrders());
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<Order> getOrderById(@PathVariable Long id) {
+    public ResponseEntity<OrderDto> getOrderById(@PathVariable Long id) {
         return ResponseEntity.ok(orderService.getOrderById(id));
     }
 
     @GetMapping("/user/{userId}")
-    public ResponseEntity<List<Order>> getOrdersByUser(@PathVariable Long userId) {
-        return ResponseEntity.ok(orderService.getOrdersByUser(userId));
+    public ResponseEntity<List<OrderDto>> getOrdersByUser(@PathVariable Long userId) {
+        return ResponseEntity.ok(orderService.getOrdersByUserId(userId));
     }
 
     @GetMapping("/status/{status}")
-    public ResponseEntity<List<Order>> getOrdersByStatus(@PathVariable String status) {
+    public ResponseEntity<List<OrderDto>> getOrdersByStatus(@PathVariable String status) {
         return ResponseEntity.ok(orderService.getOrdersByStatus(status));
     }
 
     @GetMapping("/amount-greater-than/{amount}")
-    public ResponseEntity<List<Order>> getOrdersWithAmountGreaterThan(@PathVariable BigDecimal amount) {
-        return ResponseEntity.ok(orderService.getOrdersWithAmountGreaterThan(amount));
+    public ResponseEntity<List<OrderDto>> getOrdersWithAmountGreaterThan(@PathVariable BigDecimal amount) {
+        return ResponseEntity.ok(orderService.getOrdersByAmountGreaterThan(amount));
     }
 
     @PostMapping("/user/{userId}")
-    public ResponseEntity<Order> createOrder(@RequestBody Order order, @PathVariable Long userId) {
-        return ResponseEntity.ok(orderService.createOrder(order, userId));
+    public ResponseEntity<OrderDto> createOrder(@RequestBody Order order) {
+        return ResponseEntity.ok(orderService.createOrder(order));
     }
 
     @PatchMapping("/{id}/status")
-    public ResponseEntity<Order> updateOrderStatus(
+    public ResponseEntity<OrderDto> updateOrderStatus(
             @PathVariable Long id, 
             @RequestParam String status) {
         return ResponseEntity.ok(orderService.updateOrderStatus(id, status));

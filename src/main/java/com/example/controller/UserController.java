@@ -1,6 +1,7 @@
 package com.example.controller;
 
 import com.example.model.User;
+import com.example.dto.UserDto;
 import com.example.service.UserService;
 
 import org.springframework.http.ResponseEntity;
@@ -19,49 +20,49 @@ public class UserController implements UserApi {
 
     @GetMapping
     @Override
-    public ResponseEntity<List<User>> getAllUsers() {
+    public ResponseEntity<List<UserDto>> getAllUsers() {
         return ResponseEntity.ok(userService.getAllUsers());
     }
 
     @GetMapping("/{id}")
     @Override
-    public ResponseEntity<User> getUserById(@PathVariable Long id) {
+    public ResponseEntity<UserDto> getUserById(@PathVariable Long id) {
         return ResponseEntity.ok(userService.getUserById(id));
     }
 
     @PostMapping
     @Override
-    public ResponseEntity<User> createUser(@RequestBody User user) {
+    public ResponseEntity<UserDto> createUser(@RequestBody User user) {
         return ResponseEntity.ok(userService.createUser(user));
     }
 
     @PostMapping("/bulk")
     @Override
-    public ResponseEntity<List<User>> createUsers(@RequestBody List<User> users) {
+    public ResponseEntity<List<UserDto>> createUsers(@RequestBody List<User> users) {
         return ResponseEntity.ok(userService.createUsers(users));
     }
 
     @PutMapping("/{id}")
     @Override
-    public ResponseEntity<User> updateUser(@PathVariable Long id, @RequestBody User user) {
+    public ResponseEntity<UserDto> updateUser(@PathVariable Long id, @RequestBody User user) {
         return ResponseEntity.ok(userService.updateUser(id, user));
     }
 
     @PutMapping("/email/{id}")
     @Override
-    public ResponseEntity<User> updateUserEmail(@PathVariable Long id, @RequestBody String email) {
+    public ResponseEntity<UserDto> updateUserEmail(@PathVariable Long id, @RequestBody String email) {
         return ResponseEntity.ok(userService.updateUserEmail(id, email));
     }
 
     @PatchMapping("/{id}")
     @Override
-    public ResponseEntity<User> partialUpdateUser(@PathVariable Long id, @RequestBody User user) {
+    public ResponseEntity<UserDto> partialUpdateUser(@PathVariable Long id, @RequestBody User user) {
         return ResponseEntity.ok(userService.partialUpdateUser(id, user));
     }
 
     @PatchMapping("/name/{id}")
     @Override
-    public ResponseEntity<User> partialUpdateUserName(@PathVariable Long id, @RequestBody String name) {
+    public ResponseEntity<UserDto> partialUpdateUserName(@PathVariable Long id, @RequestBody String name) {
         return ResponseEntity.ok(userService.partialUpdateUserName(id, name));
     }
 

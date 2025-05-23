@@ -2,6 +2,7 @@ package com.example.controller;
 
 import com.example.config.SecurityConfig;
 import com.example.model.User;
+import com.example.dto.UserDto;
 import com.example.service.UserService;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
@@ -34,12 +35,22 @@ public class UserControllerWebMvcTest {
 
     @Test
     void testGetAllUsers_success() throws Exception {
-        List<User> users = List.of(
-                new User(1L, "Alice", "alice@example.com"),
-                new User(2L, "Bob", "bob@example.com")
+        User user1 = new User();
+        user1.setId(1L);
+        user1.setName("Alice");
+        user1.setEmail("alice@example.com");
+        
+        User user2 = new User();
+        user2.setId(2L);
+        user2.setName("Bob");
+        user2.setEmail("bob@example.com");
+        
+        List<UserDto> userDtos = List.of(
+                new UserDto(user1),
+                new UserDto(user2)
         );
 
-        Mockito.when(userService.getAllUsers()).thenReturn(users);
+        Mockito.when(userService.getAllUsers()).thenReturn(userDtos);
 
         mockMvc.perform(get("/api/users"))
                 .andExpect(status().isOk())
