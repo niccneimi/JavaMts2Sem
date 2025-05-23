@@ -1,0 +1,17 @@
+spring:
+  application:
+    name: user-audit-service-test
+
+logging:
+  level:
+    root: INFO
+    com.example.useraudit: DEBUG
+    com.datastax.oss.driver: WARN
+    org.springframework: WARN
+
+
+cassandra:
+  contactPoints: localhost
+  port: 9042
+  keyspace: user_audit
+  datacenter: datacenter1 
