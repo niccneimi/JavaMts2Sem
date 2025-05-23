@@ -24,11 +24,13 @@ import java.util.stream.Collectors;
 @Service
 public class UserService {
     private final UserRepository userRepository;
+    private final AuditProducerService auditProducerService;
     
     private final Map<String, Boolean> processedOperations = new ConcurrentHashMap<>();
     
-    public UserService(UserRepository userRepository) {
+    public UserService(UserRepository userRepository, AuditProducerService auditProducerService) {
         this.userRepository = userRepository;
+        this.auditProducerService = auditProducerService;
     }
 
     @Cacheable(value = "users")
@@ -74,6 +76,13 @@ public class UserService {
         }
         
         User savedUser = userRepository.save(user);
+        
+        auditProducerService.sendUserCreationAudit(
+                savedUser.getId(),
+                savedUser.getName(),
+                savedUser.getIpAddress() != null ? savedUser.getIpAddress() : "system"
+        );
+        
         return new UserDto(savedUser);
     }
 
@@ -101,6 +110,9 @@ public class UserService {
         User existingUser = userRepository.findById(id)
             .orElseThrow(() -> new RuntimeException("Пользователь не найден"));
         
+        String oldEmail = existingUser.getEmail();
+        String oldName = existingUser.getName();
+        
         if (!existingUser.getEmail().equals(userData.getEmail()) && 
             userRepository.existsByEmail(userData.getEmail())) {
             throw new RuntimeException("Пользователь с таким email уже существует");
@@ -109,6 +121,25 @@ public class UserService {
         existingUser.setName(userData.getName());
         existingUser.setEmail(userData.getEmail());
         User savedUser = userRepository.save(existingUser);
+        
+        StringBuilder changedFields = new StringBuilder();
+        if (!oldName.equals(savedUser.getName())) {
+            changedFields.append("имя с '").append(oldName).append("' на '").append(savedUser.getName()).append("'");
+        }
+        if (!oldEmail.equals(savedUser.getEmail())) {
+            if (changedFields.length() > 0) {
+                changedFields.append(", ");
+            }
+            changedFields.append("email с '").append(oldEmail).append("' на '").append(savedUser.getEmail()).append("'");
+        }
+        
+        auditProducerService.sendUserUpdateAudit(
+                savedUser.getId(),
+                savedUser.getName(),
+                userData.getIpAddress() != null ? userData.getIpAddress() : "system",
+                changedFields.toString()
+        );
+        
         return new UserDto(savedUser);
     }
 
@@ -198,7 +229,15 @@ public class UserService {
             throw new RuntimeException("Нельзя удалить пользователя с заказами");
         }
         
+        String username = user.getName();
+        
         userRepository.delete(user);
+        
+        auditProducerService.sendUserDeletionAudit(
+                id,
+                username,
+                "system"
+        );
     }
 
     @CacheEvict(value = {"users", "userById"}, allEntries = true)

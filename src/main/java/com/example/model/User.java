@@ -29,6 +29,9 @@ public class User {
     @Builder.Default
     private List<Order> orders = new ArrayList<>();
     
+    @Transient
+    private String ipAddress;
+    
     public User(Long id, String name, String email) {
         this.id = id;
         this.name = name;

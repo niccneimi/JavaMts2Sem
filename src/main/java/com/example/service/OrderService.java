@@ -1,5 +1,6 @@
 package com.example.service;
 
+import com.example.dto.AuditMessageDto;
 import com.example.dto.OrderDto;
 import com.example.model.Order;
 import com.example.model.User;
@@ -29,11 +30,13 @@ public class OrderService {
 
     private final OrderRepository orderRepository;
     private final UserRepository userRepository;
+    private final AuditProducerService auditProducerService;
 
     @Autowired
-    public OrderService(OrderRepository orderRepository, UserRepository userRepository) {
+    public OrderService(OrderRepository orderRepository, UserRepository userRepository, AuditProducerService auditProducerService) {
         this.orderRepository = orderRepository;
         this.userRepository = userRepository;
+        this.auditProducerService = auditProducerService;
     }
 
     @Cacheable(value = "orders")
@@ -154,6 +157,17 @@ public class OrderService {
         }
         
         Order savedOrder = orderRepository.save(order);
+        
+        if (savedOrder.getUser() != null) {
+            auditProducerService.sendOrderCreationAudit(
+                    savedOrder.getUser().getId(),
+                    savedOrder.getUser().getName(),
+                    savedOrder.getId(),
+                    String.format("Заказ #%s на сумму %s", savedOrder.getOrderNumber(), savedOrder.getTotalAmount()),
+                    "system"
+            );
+        }
+        
         return new OrderDto(savedOrder);
     }
 
@@ -220,7 +234,31 @@ public class OrderService {
         log.debug("Удаление заказа с ID: {}", id);
         Order order = orderRepository.findById(id)
             .orElseThrow(() -> new RuntimeException("Заказ не найден с ID: " + id));
+        
+        Long userId = null;
+        String userName = null;
+        
+        if (order.getUser() != null) {
+            userId = order.getUser().getId();
+            userName = order.getUser().getName();
+        }
+        
         orderRepository.delete(order);
+        
+        if (userId != null) {
+            auditProducerService.sendAuditMessage(
+                    AuditMessageDto.builder()
+                            .userId(userId)
+                            .username(userName)
+                            .actionType("DELETE")
+                            .entityType("Order")
+                            .entityId(id.toString())
+                            .actionDetails("Удален заказ #" + order.getOrderNumber())
+                            .ipAddress("system")
+                            .timestamp(java.time.Instant.now())
+                            .build()
+            );
+        }
     }
 
     @Caching(
@@ -258,11 +296,32 @@ public class OrderService {
     @Transactional(isolation = Isolation.READ_COMMITTED, propagation = Propagation.REQUIRED)
     public OrderDto updateOrderStatus(Long id, String status) {
         log.debug("Обновление статуса заказа с ID: {} на: {}", id, status);
+        
+        Order order = orderRepository.findById(id)
+            .orElseThrow(() -> new RuntimeException("Заказ не найден с ID: " + id));
+        
+        String oldStatus = order.getStatus();
+        
         int updatedRows = orderRepository.updateStatus(id, status);
         if (updatedRows == 0) {
             throw new RuntimeException("Не удалось обновить статус заказа с ID: " + id);
         }
-        return getOrderById(id);
+        
+        Order updatedOrder = orderRepository.findById(id)
+            .orElseThrow(() -> new RuntimeException("Заказ не найден с ID: " + id));
+        
+        if (updatedOrder.getUser() != null) {
+            auditProducerService.sendOrderStatusUpdateAudit(
+                    updatedOrder.getUser().getId(),
+                    updatedOrder.getUser().getName(),
+                    updatedOrder.getId(),
+                    oldStatus,
+                    status,
+                    "system"
+            );
+        }
+        
+        return new OrderDto(updatedOrder);
     }
 
     @Transactional(readOnly = true, isolation = Isolation.READ_COMMITTED)

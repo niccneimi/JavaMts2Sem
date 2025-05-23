@@ -1,6 +1,7 @@
 package com.example.useraudit.service;
 
 import com.datastax.oss.driver.api.core.DriverException;
+import com.datastax.oss.driver.api.core.cql.ExecutionInfo;
 import com.example.useraudit.model.UserAudit;
 import com.example.useraudit.repository.UserAuditRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -75,7 +76,12 @@ class UserAuditServiceNegativeTest {
 
     private static class MockDriverException extends DriverException {
         public MockDriverException(String message) {
-            super(message);
+            super(message, null, null, false);
+        }
+        
+        @Override
+        public DriverException copy() {
+            return new MockDriverException(getMessage());
         }
     }
 } 
